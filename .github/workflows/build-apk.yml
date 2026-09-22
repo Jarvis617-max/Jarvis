@@ -1,0 +1,54 @@
+name: Build JARVIS APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare project
+        run: |
+          mkdir -p source
+          ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+          unzip -q "$ZIP" -d source
+
+          PROJECT=$(find source -name settings.gradle.kts -o -name settings.gradle | head -n 1 | xargs -r dirname)
+
+          if [ -z "$PROJECT" ]; then
+            echo "Android projesi bulunamadı"
+            exit 1
+          fi
+
+          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        working-directory: ${{ env.PROJECT }}
+        run: |
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.9
+          fi
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-APK
+          path: ${{
